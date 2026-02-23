@@ -14,7 +14,6 @@ class _VortexAppState extends State<VortexApp> {
   @override
   void initState() {
     super.initState();
-    // Video de prueba directo para asegurar que la app compile bien
     _controller = VideoPlayerController.networkUrl(
       Uri.parse('https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4'),
     )..initialize().then((_) => setState(() {}));
