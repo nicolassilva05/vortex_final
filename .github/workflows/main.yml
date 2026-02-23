@@ -8,7 +8,8 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - run: flutter create . --overwrite --platforms android
+      # El truco: Primero creamos la base, y luego descargamos las piezas
+      - run: flutter create . --overwrite --platforms android --project-name vortex_final
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
