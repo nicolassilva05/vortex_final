@@ -1,11 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io';
-import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,14 +20,15 @@ class VortexApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF00050A), // Tu azul oscuro
-        focusColor: Colors.cyanAccent.withOpacity(0.3), // Color de selección en TV
+        scaffoldBackgroundColor: const Color(0xFF00050A),
+        focusColor: Colors.cyanAccent.withOpacity(0.3),
       ),
       home: const VortexSplash(),
     );
   }
 }
 
+// --- SPLASH SCREEN ---
 class VortexSplash extends StatefulWidget {
   const VortexSplash({super.key});
   @override
@@ -68,6 +69,7 @@ class _VortexSplashState extends State<VortexSplash> {
   }
 }
 
+// --- PANTALLA PRINCIPAL ---
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -77,9 +79,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool isRegistered = false;
   bool showRegister = false;
+  String deviceID = "Cargando...";
+
+  // Lógica de Registro
   int _start = 60;
   Timer? _timer;
-  String deviceID = "Obteniendo ID...";
+  bool _codeSent = false;
+  bool _canResend = false;
 
   @override
   void initState() {
@@ -95,31 +101,101 @@ class _LoginScreenState extends State<LoginScreen> {
       if (Platform.isAndroid) {
         var build = await deviceInfo.androidInfo;
         id = build.id; 
-      } else { id = "GENERIC-DEV-ID"; }
-    } catch (e) { id = "UNKNOWN-ID"; }
+      } else { id = "VORTEX-PC-TEST"; }
+    } catch (e) { id = "ID-DESCONOCIDO"; }
     setState(() => deviceID = "ID: ${id.toUpperCase()}");
   }
 
   Future<void> _checkStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() { isRegistered = prefs.getBool('isRegistered') ?? false; });
+    setState(() { isRegistered = prefs.getBool('vortex_reg_complete') ?? false; });
   }
 
   void startTimer() {
-    _timer?.cancel();
-    setState(() => _start = 60);
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_start == 0) { setState(() => timer.cancel()); } 
-      else { setState(() => _start--); }
+    setState(() {
+      _codeSent = true;
+      _canResend = false;
+      _start = 60;
     });
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_start == 0) {
+        setState(() {
+          t.cancel();
+          _canResend = true;
+        });
+      } else {
+        setState(() => _start--);
+      }
+    });
+    
+    // Simulación de cartel de envío
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Código enviado al correo elegido"), backgroundColor: Colors.cyan),
+    );
   }
 
-  Widget _buildTextField({required String label, bool obscure = false}) {
+  // Ventana Emergente de Contraseña (Modal Opaco)
+  void _showPasswordModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Container(
+        color: Colors.black.withOpacity(0.8), // Fondo opaco
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF001015),
+          shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.cyanAccent), borderRadius: BorderRadius.circular(20)),
+          title: const Text("ASIGNAR CONTRASEÑA", textAlign: TextAlign.center, style: TextStyle(color: Colors.cyanAccent)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _input(label: "Nueva Contraseña", obscure: true),
+              const SizedBox(height: 15),
+              _input(label: "Repetir Contraseña", obscure: true),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('vortex_reg_complete', true);
+                Navigator.pop(context); // Cerrar modal contraseña
+                _showSuccessDialog();
+              },
+              child: const Text("CONTINUAR"),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("¡ÉXITO!"),
+        content: Text("Cuenta creada exitosamente.\nTu ID asignado es: ${deviceID.replaceAll("ID: ", "")}"),
+        actions: [
+          TextButton(onPressed: () {
+            Navigator.pop(context);
+            setState(() { isRegistered = true; showRegister = false; });
+          }, child: const Text("OK"))
+        ],
+      ),
+    );
+  }
+
+  Widget _input({required String label, bool obscure = false, Widget? suffix}) {
     return TextField(
       obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
-        border: const OutlineInputBorder(),
+        suffixIcon: suffix,
+        labelStyle: const TextStyle(color: Colors.white60),
+        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
         focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.cyanAccent, width: 2)),
       ),
     );
@@ -128,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Shortcuts( // Esto habilita el control remoto de Android TV
+      body: Shortcuts(
         shortcuts: <LogicalKeySet, Intent>{
           LogicalKeySet(LogicalKeyboardKey.select): const ActivateIntent(),
           LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
@@ -142,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(deviceID, style: const TextStyle(color: Colors.white38, fontSize: 14)),
                 const SizedBox(height: 40),
                 Container(
-                  constraints: const BoxConstraints(maxWidth: 450),
+                  constraints: const BoxConstraints(maxWidth: 500),
                   padding: const EdgeInsets.all(30),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.02),
@@ -164,27 +240,17 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         const Text("INICIAR SESIÓN", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 25),
-        _buildTextField(label: "Usuario (ID)"),
+        _input(label: "Usuario (ID)"),
         const SizedBox(height: 15),
-        _buildTextField(label: "Contraseña", obscure: true),
+        _input(label: "Contraseña", obscure: true),
         const SizedBox(height: 35),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.cyanAccent,
-            foregroundColor: Colors.black,
-            minimumSize: const Size(double.infinity, 60),
-          ),
-          onPressed: () { /* Acción de entrar */ },
-          child: const Text("INGRESAR", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black, minimumSize: const Size(double.infinity, 60)),
+          onPressed: () {},
+          child: const Text("INGRESAR", style: TextStyle(fontWeight: FontWeight.bold)),
         ),
-        if (!isRegistered) // Solo muestra registro si no hay cuenta vinculada
-          TextButton(
-            onPressed: () { setState(() => showRegister = true); startTimer(); },
-            child: const Padding(
-              padding: EdgeInsets.only(top: 20),
-              child: Text("¿Dispositivo nuevo? Regístrate aquí", style: TextStyle(color: Colors.cyanAccent)),
-            ),
-          ),
+        if (!isRegistered)
+          TextButton(onPressed: () => setState(() => showRegister = true), child: const Text("¿Nuevo? Regístrate aquí", style: TextStyle(color: Colors.cyanAccent))),
       ],
     );
   }
@@ -192,30 +258,30 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget buildRegister() {
     return Column(
       children: [
-        const Text("REGISTRO DE EQUIPO", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 25),
-        _buildTextField(label: "Correo electrónico"),
+        const Text("REGISTRO", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        _input(label: "Correo electrónico (Gmail/Hotmail)"),
         const SizedBox(height: 15),
-        _buildTextField(label: "Código de Verificación"),
-        const SizedBox(height: 10),
-        _start > 0 
-          ? Text("Reenviar código en $_start s", style: const TextStyle(color: Colors.grey))
-          : TextButton(onPressed: startTimer, child: const Text("REENVIAR CÓDIGO", style: TextStyle(color: Colors.cyanAccent))),
-        const SizedBox(height: 15),
-        _buildTextField(label: "Asignar Contraseña", obscure: true),
-        const SizedBox(height: 35),
+        Row(
+          children: [
+            Expanded(child: _input(label: "Código de Verificación")),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 120,
+              height: 55,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+                onPressed: (!_codeSent || _canResend) ? startTimer : null,
+                child: Text(!_codeSent ? "ENVIAR" : (_canResend ? "RE-ENVIAR" : "$_start s")),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 30),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            minimumSize: const Size(double.infinity, 60),
-          ),
-          onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('isRegistered', true);
-            setState(() { isRegistered = true; showRegister = false; });
-          },
-          child: const Text("VINCULAR DISPOSITIVO", style: TextStyle(fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, minimumSize: const Size(double.infinity, 60)),
+          onPressed: _codeSent ? _showPasswordModal : null,
+          child: const Text("COMPROBAR"),
         ),
       ],
     );
