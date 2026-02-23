@@ -1,337 +1,423 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Experiencia inmersiva total (oculta barras de sistema)
+  // Modo inmersivo para TV y Celular
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  runApp(const VortexApp());
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+  runApp(const VortexUltimateApp());
 }
 
-class VortexApp extends StatelessWidget {
-  const VortexApp({super.key});
+class VortexUltimateApp extends StatelessWidget {
+  const VortexUltimateApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Vortex Ultimate',
+      title: 'Vortex Premium',
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF00050A),
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.cyanAccent, brightness: Brightness.dark),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const VortexSplash(),
+      home: const VortexSplashScreen(),
     );
   }
 }
 
-// --- 1. INTRO CINEMATOGRÁFICA (SPLASH VIDEO) ---
-class VortexSplash extends StatefulWidget {
-  const VortexSplash({super.key});
+// =========================================================
+// 1. VIDEO SPLASH (CARGA INICIAL)
+// =========================================================
+class VortexSplashScreen extends StatefulWidget {
+  const VortexSplashScreen({super.key});
+
   @override
-  State<VortexSplash> createState() => _VortexSplashState();
+  State<VortexSplashScreen> createState() => _VortexSplashScreenState();
 }
 
-class _VortexSplashState extends State<VortexSplash> {
+class _VortexSplashScreenState extends State<VortexSplashScreen> {
   late VideoPlayerController _controller;
+
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset("assets/videos/vortex.mp4")
-      ..initialize().then((_) { setState(() {}); _controller.play(); });
+    // Reemplazar con el path real de tu video en assets
+    _controller = VideoPlayerController.asset("assets/videos/vortex_intro.mp4")
+      ..initialize().then((_) {
+        setState(() {});
+        _controller.play();
+      });
+
     _controller.addListener(() {
       if (_controller.value.position >= _controller.value.duration) {
-        Navigator.pushReplacement(context, PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 1000),
-          pageBuilder: (_, __, ___) => const MasterCore(),
-          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-        ));
+        // Al terminar el video, vamos a la pantalla de Auth limpia
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 800),
+            pageBuilder: (context, animation, secondaryAnimation) => const VortexAuthScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
       }
     });
   }
+
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(backgroundColor: Colors.black, body: Center(child: _controller.value.isInitialized ? SizedBox.expand(child: FittedBox(fit: BoxFit.cover, child: SizedBox(width: _controller.value.size.width, height: _controller.value.size.height, child: VideoPlayer(_controller)))) : const CircularProgressIndicator(color: Colors.cyanAccent)));
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: _controller.value.isInitialized
+            ? SizedBox.expand(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _controller.value.size.width,
+                    height: _controller.value.size.height,
+                    child: VideoPlayer(_controller),
+                  ),
+                ),
+              )
+            : const CircularProgressIndicator(color: Colors.cyanAccent),
+      ),
+    );
   }
 }
 
-// --- 2. NÚCLEO TOTAL DE LA APLICACIÓN ---
-class MasterCore extends StatefulWidget {
-  const MasterCore({super.key});
+// =========================================================
+// 2. INTERFAZ DE AUTENTICACIÓN (REGISTRO / LOGIN)
+// ESTA INTERFAZ ESTÁ LIMPIA - SIN MENÚS NI LUPAS
+// =========================================================
+class VortexAuthScreen extends StatefulWidget {
+  const VortexAuthScreen({super.key});
+
   @override
-  State<MasterCore> createState() => _MasterCoreState();
+  State<VortexAuthScreen> createState() => _VortexAuthScreenState();
 }
 
-class _MasterCoreState extends State<MasterCore> {
-  // --- VARIABLES DE ESTADO ---
-  bool isLoggedIn = false;
-  String hardwareID = "DETECTOR-VORTEX-ID";
-  String userEmail = "usuario@vortex.com";
-  String userPass = "123456";
-  String currentTime = "";
+class _VortexAuthScreenState extends State<VortexAuthScreen> {
+  bool isRegistering = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passController = TextEditingController();
 
-  // --- CATÁLOGO Y BUSQUEDA ---
-  final TextEditingController _searchCtrl = TextEditingController();
-  List<String> catalogo = ["AVENGERS", "BATMAN", "NARUTO", "ONE PIECE", "SPIDERMAN", "STRANGER THINGS", "ANIME: BLEACH", "FROZEN", "DRAGON BALL", "EL REY LEON"];
-  List<String> resultadosBusqueda = [];
+  void _processAuth() {
+    // Simulación de éxito de registro/login
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.cyanAccent,
+        content: Text(
+          isRegistering ? "¡Cuenta creada con éxito!" : "¡Inicio de sesión exitoso!",
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
 
-  // --- HISTORIAL CRONOLÓGICO REAL ---
-  List<String> historial = []; // Lo último visto siempre en el índice 0
+    // Solo tras el éxito, entramos al Menú Principal
+    Timer(const Duration(seconds: 1), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const VortexMainMenu()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.0,
+            colors: [Color(0xFF001F2B), Color(0xFF00050A)],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "VORTEX",
+                  style: GoogleFonts.orbitron(
+                    fontSize: 60,
+                    color: Colors.cyanAccent,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 15,
+                  ),
+                ),
+                const SizedBox(height: 50),
+                Container(
+                  width: 400,
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        isRegistering ? "REGISTRARSE" : "INICIAR SESIÓN",
+                        style: GoogleFonts.lexend(fontSize: 20, color: Colors.white70),
+                      ),
+                      const SizedBox(height: 30),
+                      TextField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          hintText: "Correo Electrónico",
+                          filled: true,
+                          fillColor: Colors.white10,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                          prefixIcon: const Icon(Icons.email, color: Colors.cyanAccent),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _passController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          hintText: "Contraseña",
+                          filled: true,
+                          fillColor: Colors.white10,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                          prefixIcon: const Icon(Icons.lock, color: Colors.cyanAccent),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        onPressed: _processAuth,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyanAccent,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size(double.infinity, 60),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        child: Text(
+                          isRegistering ? "CREAR CUENTA" : "ENTRAR",
+                          style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextButton(
+                        onPressed: () => setState(() => isRegistering = !isRegistering),
+                        child: Text(
+                          isRegistering ? "¿Ya tienes cuenta? Inicia Sesión" : "¿Eres nuevo? Regístrate aquí",
+                          style: const TextStyle(color: Colors.white38),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================
+// 3. MENÚ PRINCIPAL (SOLO ACCESIBLE POST-LOGIN)
+// CON INTERFAZ COMPLETA: HORA, LUPA, HISTORIAL, PERFIL Y CATEGORÍAS
+// =========================================================
+class VortexMainMenu extends StatefulWidget {
+  const VortexMainMenu({super.key});
+
+  @override
+  State<VortexMainMenu> createState() => _VortexMainMenuState();
+}
+
+class _VortexMainMenuState extends State<VortexMainMenu> {
+  String _timeString = "";
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
-    _initSystem();
-    Timer.periodic(const Duration(seconds: 1), (t) => setState(() => currentTime = DateFormat('HH:mm:ss').format(DateTime.now())));
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) => _updateTime());
   }
 
-  void _initSystem() async {
-    final info = await DeviceInfoPlugin().androidInfo;
-    setState(() => hardwareID = info.id.toUpperCase());
-  }
-
-  // --- SISTEMA DE NOTIFICACIONES (TOASTS) ---
-  void _vortexNotify(String titulo, String msg, IconData icon, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      content: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: const Color(0xFF00151C), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.5))),
-        child: Row(children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(width: 15),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(msg, style: const TextStyle(fontSize: 12, color: Colors.white54)),
-          ])),
-        ]),
-      ),
-    ));
-  }
-
-  // --- LÓGICA DE REPRODUCCIÓN E HISTORIAL ---
-  void _reproducirPelicula(String title) {
+  void _updateTime() {
+    final DateTime now = DateTime.now();
     setState(() {
-      historial.remove(title); // Si ya existe, lo quitamos de su posición anterior
-      historial.insert(0, title); // Lo insertamos en la posición 0 (Cronología Actual)
+      _timeString = DateFormat('HH:mm').format(now);
     });
-    _vortexNotify("Reproduciendo", "Disfruta de $title", Icons.play_circle_fill, Colors.cyanAccent);
   }
 
-  // --- FLUJO COMPLETO DE RECUPERACIÓN (OLVIDÉ CONTRASEÑA) ---
-  void _openRecoveryFlow() {
-    showGeneralDialog(context: context, barrierColor: Colors.black.withOpacity(0.95), pageBuilder: (c, a, b) => Center(
-      child: Material(color: Colors.transparent, child: Container(
-        width: 400, padding: const EdgeInsets.all(35),
-        decoration: BoxDecoration(color: const Color(0xFF000A0F), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.cyanAccent.withOpacity(0.5))),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text("RECUPERAR", style: GoogleFonts.orbitron(color: Colors.cyanAccent, fontSize: 18)),
-          const SizedBox(height: 25),
-          _vortexInput(label: "Ingresa tu email", icon: Icons.email_outlined),
-          const SizedBox(height: 30),
-          _vortexButton(text: "ENVIAR CÓDIGO", onTap: () {
-            Navigator.pop(c);
-            _vortexNotify("Código Enviado", "Revisa tu bandeja de entrada", Icons.mail, Colors.amberAccent);
-            _openVerifyCode();
-          }),
-        ]),
-      )),
-    ));
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
   }
 
-  void _openVerifyCode() {
-    showGeneralDialog(context: context, barrierColor: Colors.black, pageBuilder: (c, a, b) => Center(
-      child: Material(color: Colors.transparent, child: Container(
-        width: 400, padding: const EdgeInsets.all(35),
-        decoration: BoxDecoration(color: const Color(0xFF000A0F), borderRadius: BorderRadius.circular(20)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text("CÓDIGO DE SEGURIDAD"),
-          _vortexInput(label: "000000", icon: Icons.security),
-          const SizedBox(height: 20),
-          _vortexButton(text: "VERIFICAR", onTap: () { Navigator.pop(c); _openNewPass(); }),
-        ]),
-      )),
-    ));
-  }
-
-  void _openNewPass() {
-    showGeneralDialog(context: context, barrierColor: Colors.black, pageBuilder: (c, a, b) => Center(
-      child: Material(color: Colors.transparent, child: Container(
-        width: 400, padding: const EdgeInsets.all(35),
-        decoration: BoxDecoration(color: const Color(0xFF000A0F), borderRadius: BorderRadius.circular(20)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text("NUEVA CONTRASEÑA"),
-          _vortexInput(label: "Escribe la nueva clave", obscure: true, icon: Icons.lock),
-          const SizedBox(height: 30),
-          _vortexButton(text: "FINALIZAR", onTap: () {
-            Navigator.pop(c);
-            _vortexNotify("Éxito", "Contraseña cambiada exitosamente", Icons.check_circle, Colors.greenAccent);
-          }),
-        ]),
-      )),
-    ));
-  }
-
-  // --- INTERFAZ PRINCIPAL (HOME / LOGIN) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 700),
-        child: isLoggedIn ? _buildHome() : _buildLogin(),
+      body: Stack(
+        children: [
+          // FONDO GRADIENTE PREMIUM
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF000A0F), Colors.black],
+              ),
+            ),
+          ),
+
+          // --- BARRA SUPERIOR ---
+          Positioned(
+            top: 30,
+            left: 0,
+            right: 40,
+            child: Row(
+              children: [
+                const Spacer(flex: 2),
+                // Centro: Nombre de la Aplicación
+                Text(
+                  "VORTEX",
+                  style: GoogleFonts.orbitron(
+                    fontSize: 28,
+                    color: Colors.cyanAccent,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 5,
+                  ),
+                ),
+                const Spacer(),
+                // Derecha: Hora e Iconos Funcionales
+                Row(
+                  children: [
+                    Text(
+                      _timeString,
+                      style: GoogleFonts.orbitron(fontSize: 20, color: Colors.white54),
+                    ),
+                    const SizedBox(width: 30),
+                    _topIcon(Icons.search, "Búsqueda"),
+                    _topIcon(Icons.history, "Historial"),
+                    _topIcon(Icons.person, "Perfil"),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // --- MENÚ LATERAL IZQUIERDO ---
+          Positioned(
+            left: 0,
+            top: 100,
+            bottom: 0,
+            child: Container(
+              width: 100,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.black, Colors.black.withOpacity(0)],
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _sideMenuItem(Icons.movie, "PELÍCULAS"),
+                  _sideMenuItem(Icons.tv, "SERIES"),
+                  _sideMenuItem(Icons.auto_awesome, "ANIME"),
+                  _sideMenuItem(Icons.live_tv, "TV VIVO"),
+                ],
+              ),
+            ),
+          ),
+
+          // --- CONTENIDO DE ESTRENOS ---
+          Positioned(
+            left: 120,
+            top: 120,
+            right: 0,
+            bottom: 0,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "ESTRENOS DESTACADOS",
+                  style: GoogleFonts.lexend(fontSize: 18, color: Colors.cyanAccent, letterSpacing: 2),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 5,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        width: 200,
+                        margin: const EdgeInsets.only(right: 25, bottom: 40),
+                        decoration: BoxDecoration(
+                          color: Colors.white10,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white12),
+                          image: const DecorationImage(
+                            image: NetworkImage("https://via.placeholder.com/200x300/000B14/00E5FF?text=VORTEX+POSTER"),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLogin() {
-    return Container(
-      decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.2, colors: [Color(0xFF001A25), Color(0xFF00050A)])),
-      child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(40), child: Column(children: [
-        Text("VORTEX", style: GoogleFonts.orbitron(fontSize: 60, color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 15)),
-        const SizedBox(height: 50),
-        Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(40),
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.01), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white10)),
-          child: Column(children: [
-            _vortexInput(label: "Email / Usuario", icon: Icons.person_outline),
-            _vortexInput(label: "Contraseña", icon: Icons.lock_outline, obscure: true),
-            const SizedBox(height: 30),
-            _vortexButton(text: "INICIAR SESIÓN", onTap: () {
-              setState(() => isLoggedIn = true);
-              _vortexNotify("Acceso Exitoso", "Bienvenido de nuevo", Icons.verified, Colors.cyanAccent);
-            }),
-            TextButton(onPressed: _openRecoveryFlow, child: const Text("¿Olvidaste tu contraseña?", style: TextStyle(color: Colors.white38))),
-          ]),
-        )
-      ]))),
-    );
-  }
-
-  Widget _buildHome() {
-    bool isTV = MediaQuery.of(context).size.width > 900;
-    return Row(children: [
-      // SIDEBAR PROFESIONAL
-      Container(width: 80, color: Colors.black, child: Column(children: [
-        const SizedBox(height: 40),
-        _sideIcon(Icons.search, _showSearch),
-        _sideIcon(Icons.history, _showHistory),
-        _sideIcon(Icons.person_pin, _showProfile),
-        const Spacer(),
-        _sideIcon(Icons.logout, () => setState(() => isLoggedIn = false)),
-        const SizedBox(height: 20),
-      ])),
-      // DASHBOARD
-      Expanded(child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("VORTEX HOME", style: GoogleFonts.orbitron(fontSize: 25, color: Colors.cyanAccent)),
-            Text(currentTime, style: GoogleFonts.orbitron(color: Colors.white12, fontSize: 20)),
-          ]),
-          const SizedBox(height: 50),
-          if (historial.isNotEmpty) ...[
-            Text("VISTO RECIENTEMENTE", style: GoogleFonts.lexend(letterSpacing: 2, color: Colors.white54, fontSize: 14)),
-            const SizedBox(height: 20),
-            SizedBox(height: 160, child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: historial.length,
-              itemBuilder: (c, i) => _cardPoster(historial[i], isHistorial: true),
-            )),
-            const SizedBox(height: 40),
-          ],
-          Text("CATÁLOGO PARA TI", style: GoogleFonts.lexend(letterSpacing: 2, color: Colors.white54, fontSize: 14)),
-          const SizedBox(height: 20),
-          Expanded(child: GridView.builder(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: isTV ? 5 : 2, childAspectRatio: 0.7, crossAxisSpacing: 20, mainAxisSpacing: 20),
-            itemCount: catalogo.length,
-            itemBuilder: (c, i) => _cardPoster(catalogo[i]),
-          ))
-        ]),
-      ))
-    ]);
-  }
-
-  // --- MODAL DE PERFIL (ID BLOQUEADO) ---
-  void _showProfile() {
-    showGeneralDialog(context: context, barrierColor: Colors.black87, pageBuilder: (c, a, b) => Center(
-      child: Material(color: Colors.transparent, child: Container(
-        width: 500, padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(color: const Color(0xFF000A0F), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.cyanAccent.withOpacity(0.3))),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const CircleAvatar(radius: 50, backgroundColor: Colors.cyanAccent, child: Icon(Icons.person, size: 50, color: Colors.black)),
-          const SizedBox(height: 30),
-          _profileRow("ID DISPOSITIVO (BLOQUEADO)", hardwareID, false),
-          _profileRow("CORREO", userEmail, true),
-          _profileRow("PASSWORD", "********", true),
-          const SizedBox(height: 40),
-          _vortexButton(text: "VOLVER", onTap: () => Navigator.pop(c)),
-        ]),
-      )),
-    ));
-  }
-
-  void _showSearch() {
-    showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: const Color(0xFF00050A), builder: (c) => Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(children: [
-        _vortexInput(label: "Buscar...", icon: Icons.search, controller: _searchCtrl, onChanged: (v) {
-          setState(() => resultadosBusqueda = catalogo.where((e) => e.contains(v.toUpperCase())).toList());
-        }),
-        const SizedBox(height: 30),
-        Expanded(child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, childAspectRatio: 0.7, crossAxisSpacing: 20),
-          itemCount: resultadosBusqueda.length,
-          itemBuilder: (c, i) => _cardPoster(resultadosBusqueda[i]),
-        ))
-      ]),
-    ));
-  }
-
-  void _showHistory() {
-    _vortexNotify("Historial", "Mostrando tus últimas vistas", Icons.history, Colors.blueAccent);
-  }
-
-  // --- WIDGETS DE SOPORTE ---
-  Widget _cardPoster(String t, {bool isHistorial = false}) {
-    return InkWell(
-      onTap: () => _reproducirPelicula(t),
-      child: Container(
-        width: 120, margin: const EdgeInsets.only(right: 15),
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(15), border: Border.all(color: isHistorial ? Colors.cyanAccent.withOpacity(0.3) : Colors.white10)),
-        child: Center(child: Text(t, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+  // Widget para iconos de la barra superior derecha
+  Widget _topIcon(IconData icon, String tooltip) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 28),
+        tooltip: tooltip,
+        onPressed: () {
+          // Cada icono disparará su propia interfaz modal/pantalla
+          print("Navegando a: $tooltip");
+        },
       ),
     );
   }
 
-  Widget _sideIcon(IconData i, VoidCallback onTap) => IconButton(icon: Icon(i, color: Colors.white38, size: 28), onPressed: onTap);
-
-  Widget _profileRow(String l, String v, bool ed) {
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 15), child: Row(children: [
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(l, style: const TextStyle(color: Colors.white24, fontSize: 10)),
-        Text(v, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ]),
-      const Spacer(),
-      Icon(ed ? Icons.edit : Icons.lock, color: ed ? Colors.cyanAccent : Colors.white12, size: 20),
-    ]));
-  }
-
-  Widget _vortexInput({required String label, IconData? icon, bool obscure = false, TextEditingController? controller, Function(String)? onChanged}) {
-    return Container(margin: const EdgeInsets.symmetric(vertical: 10), child: TextField(controller: controller, onChanged: onChanged, obscureText: obscure, decoration: InputDecoration(prefixIcon: Icon(icon, color: Colors.cyanAccent), labelText: label, filled: true, fillColor: Colors.white.withOpacity(0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none))));
-  }
-
-  Widget _vortexButton({required String text, required VoidCallback onTap, Color color = Colors.cyanAccent}) {
-    return ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.black, minimumSize: const Size(double.infinity, 60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: onTap, child: Text(text, style: GoogleFonts.orbitron(fontWeight: FontWeight.bold)));
+  // Widget para items del menú lateral
+  Widget _sideMenuItem(IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white54, size: 30),
+          const SizedBox(height: 5),
+          Text(label, style: const TextStyle(fontSize: 8, color: Colors.white38)),
+        ],
+      ),
+    );
   }
 }
