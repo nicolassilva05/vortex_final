@@ -8,10 +8,21 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      # El truco: Primero creamos la base, y luego descargamos las piezas
-      - run: flutter create . --overwrite --platforms android --project-name vortex_final
+      
+      # PASO 1: Creamos el molde vacío
+      - run: flutter create . --platforms android --project-name vortex
+      
+      # PASO 2: Borramos el contador que viene por defecto
+      - run: rm lib/main.dart
+      
+      # PASO 3: Restauramos TU código profesional (inyectamos el main.dart de nuevo)
+      - run: git checkout lib/main.dart
+      - run: git checkout pubspec.yaml
+      
+      # PASO 4: Fabricamos el APK con tu diseño
       - run: flutter pub get
       - run: flutter build apk --release
+      
       - uses: actions/upload-artifact@v4
         with:
           name: vortex-apk
