@@ -1,12 +1,18 @@
-name: vortex_definitivo
-description: App Vortex con Video de Homero
+name: vortex_final
+description: Vortex Streaming App
 publish_to: 'none'
 version: 1.0.0+1
+
 environment:
   sdk: '>=3.0.0 <4.0.0'
+
 dependencies:
   flutter:
     sdk: flutter
   video_player: ^2.8.1
+  google_fonts: ^6.1.0
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/videos/vortex.mp4
