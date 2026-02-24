@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math'; // Necesario para el ID aleatorio
+import 'dart:math'; 
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const VertoxApp());
@@ -45,7 +46,7 @@ class VertoxBridge {
           'user_id': emailPublicKey,
           'template_params': {
             'user_email': userEmail,
-            'codigo_vortex': otpCode, // CAMBIADO: Antes decía 'code', ahora coincide con tu EmailJS
+            'codigo_vortex': otpCode,
             'reply_to': 'nicolassilvaharry2005@gmail.com',
           },
         }),
@@ -58,7 +59,6 @@ class VertoxBridge {
 
   // Sincronización con límite de 2 dispositivos
   static Future<bool> syncNewUser(String email, String pass, String uniqueID) async {
-    // Simulamos la inserción en SQLITE CLOUD guardando el ID y el límite de 2
     debugPrint("SQLITE CLOUD: INSERT INTO USERS (email, pass, vertox_id, dev_limit) VALUES ('$email', '$pass', '$uniqueID', 2)");
     await Future.delayed(const Duration(seconds: 2)); 
     return true; 
@@ -114,6 +114,7 @@ class _VertoxAppState extends State<VertoxApp> {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF010101),
         primaryColor: Colors.cyanAccent,
+        textTheme: GoogleFonts.orbitronTextTheme(ThemeData.dark().textTheme),
       ),
       home: _routeManager(),
     );
@@ -144,6 +145,7 @@ class _VertoxAppState extends State<VertoxApp> {
         );
       case 'HOME': return VertoxHomeScreen(
           savedPassword: savedPassword,
+          currentUser: currentUser,
           onLogout: () {
             setState(() { isLoggedIn = false; savedPassword = ""; });
             changeSector('LOGIN');
@@ -155,7 +157,7 @@ class _VertoxAppState extends State<VertoxApp> {
 }
 
 // ==========================================
-// VUI: VISUAL USER INTERFACE
+// VUI: VISUAL USER INTERFACE (SISTEMA DE DISEÑO)
 // ==========================================
 class VUI {
   static void showStatus(BuildContext context, String msg, {bool isError = false}) {
@@ -166,7 +168,7 @@ class VUI {
           children: [
             Icon(isError ? Icons.warning_amber_rounded : Icons.verified_rounded, color: Colors.white),
             const SizedBox(width: 15),
-            Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1))),
+            Expanded(child: Text(msg, style: GoogleFonts.roboto(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1))),
           ],
         ),
         backgroundColor: isError ? Colors.redAccent : Colors.cyanAccent.withOpacity(0.7),
@@ -251,7 +253,7 @@ class VUI {
         obscureText: isPass,
         enabled: enabled,
         onChanged: onChange,
-        style: const TextStyle(fontSize: 16, color: Colors.white),
+        style: GoogleFonts.roboto(fontSize: 16, color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white24),
@@ -388,7 +390,7 @@ class _VertoxRegisterState extends State<VertoxRegister> {
   int secondsRemaining = 0;
   Timer? timer;
   bool isSending = false;
-  String generatedCode = (Random().nextInt(900000) + 100000).toString(); // Código OTP dinámico
+  String generatedCode = (Random().nextInt(900000) + 100000).toString();
 
   void startTimer() {
     setState(() => secondsRemaining = 60);
@@ -501,10 +503,7 @@ class _VertoxRegisterState extends State<VertoxRegister> {
                       VUI.input(hint: "Confirmar", icon: Icons.lock_reset, isPass: true, ctrl: p2, onChange: (_) => setState(() {}), suffix: Icon(match ? Icons.check_circle : Icons.error, color: match ? Colors.greenAccent : Colors.redAccent)),
                       VUI.mainButton(text: "FINALIZAR REGISTRO", onPressed: match ? () async { 
                         VUI.showStatus(context, "REGISTRANDO EN SQLITE CLOUD...");
-                        
-                        // GENERACIÓN DEL ID DE 6 DÍGITOS
                         String miID = (Random().nextInt(900000) + 100000).toString();
-                        
                         await VertoxBridge.syncNewUser(mail.text, p1.text, miID);
                         _showSuccessIDDialog(miID);
                       } : null),
@@ -691,8 +690,9 @@ class _VertoxProfilesState extends State<VertoxProfiles> {
 
 class VertoxHomeScreen extends StatefulWidget {
   final String savedPassword;
+  final Map<String, dynamic>? currentUser;
   final VoidCallback onLogout;
-  const VertoxHomeScreen({super.key, required this.savedPassword, required this.onLogout});
+  const VertoxHomeScreen({super.key, required this.savedPassword, required this.currentUser, required this.onLogout});
 
   @override State<VertoxHomeScreen> createState() => _VertoxHomeScreenState();
 }
@@ -739,50 +739,74 @@ class _VertoxHomeScreenState extends State<VertoxHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          Container(
-            width: 320,
-            decoration: const BoxDecoration(color: Color(0xFF050505), border: Border(right: BorderSide(color: Colors.white10))),
-            child: Column(
-              children: [
-                const SizedBox(height: 80),
-                const Icon(Icons.cyclone, color: Colors.cyanAccent, size: 60),
-                const Text("VERTOX", style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold, color: Colors.cyanAccent, letterSpacing: 5)),
-                const SizedBox(height: 80),
-                _navTile(Icons.tv, "CANALES LIVE", active: true),
-                _navTile(Icons.movie_filter, "CINE HUB"),
-                _navTile(Icons.storage, "SQLITE CLOUD MANAGER"),
-                _navTile(Icons.person_pin, "MI IDENTIDAD"),
-                const Spacer(),
-                _navTile(Icons.power_settings_new, "DESCONECTAR", color: Colors.redAccent, onTap: _triggerLogoutProcedure),
-                const SizedBox(height: 50),
-              ],
-            ),
-          ),
-          const Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: VUI.decorativeBackground(
+        Stack(
+          children: [
+            // BARRA SUPERIOR
+            Positioned(
+              top: 50, left: 30, right: 30,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.terminal, size: 100, color: Colors.white10),
-                  SizedBox(height: 20),
-                  Text("SISTEMA VERTOX CARGADO\nESPERANDO COMANDOS", textAlign: TextAlign.center, style: TextStyle(fontSize: 20, letterSpacing: 10, color: Colors.white12)),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("V O R T E X", style: TextStyle(color: Colors.cyanAccent, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("ESTADO: EN LÍNEA", style: TextStyle(color: Colors.greenAccent, fontSize: 10, letterSpacing: 2)),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: _triggerLogoutProcedure,
+                    icon: const Icon(Icons.power_settings_new, color: Colors.redAccent, size: 30),
+                  )
                 ],
               ),
             ),
-          ),
-        ],
+            // CONTENIDO CENTRAL
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shield, size: 100, color: Colors.cyanAccent),
+                  const SizedBox(height: 20),
+                  Text("BIENVENIDO AL NÚCLEO", style: GoogleFonts.orbitron(fontSize: 30, letterSpacing: 5)),
+                  Text(widget.currentUser?['email'] ?? "OPERADOR", style: const TextStyle(color: Colors.white38)),
+                  const SizedBox(height: 50),
+                  Wrap(
+                    spacing: 20,
+                    children: [
+                      _dashCard("BASE DE DATOS", Icons.storage, "CONECTADO"),
+                      _dashCard("SEGURIDAD", Icons.lock, "ACTIVA"),
+                      _dashCard("RED CLOUD", Icons.cloud_done, "LATENCIA 2ms"),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
 
-  Widget _navTile(IconData i, String t, {bool active = false, Color? color, VoidCallback? onTap}) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(i, color: active ? Colors.cyanAccent : (color ?? Colors.white24), size: 28),
-      title: Text(t, style: TextStyle(color: active ? Colors.white : (color ?? Colors.white24), letterSpacing: 2, fontWeight: active ? FontWeight.bold : FontWeight.normal)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 45, vertical: 15),
+  Widget _dashCard(String title, IconData icon, String status) {
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.cyanAccent),
+          const SizedBox(height: 15),
+          Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 5),
+          Text(status, style: const TextStyle(fontSize: 12, color: Colors.white24)),
+        ],
+      ),
     );
   }
 }
