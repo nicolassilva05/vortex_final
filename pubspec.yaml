@@ -1,20 +1,35 @@
 name: vortex_pro
 description: Vortex Ultimate Premium Full Edition
 version: 1.0.0+1
+
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.0.0 <4.0.0" # Corregido para compatibilidad estable
 
 dependencies:
   flutter:
     sdk: flutter
+  
+  # Paquetes de UI y Funcionalidad
   video_player: ^2.8.2
   google_fonts: ^6.2.1
+  cupertino_icons: ^1.0.8
+  
+  # Manejo de Datos y Red
   shared_preferences: ^2.2.2
+  http: ^1.2.0
+  
+  # Utilidades del Sistema
   device_info_plus: ^10.1.0
   intl: ^0.19.0
-  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
+
+  # Configuración de activos de video vistos en GitHub
   assets:
     - assets/videos/vortex.mp4
