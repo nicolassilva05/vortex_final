@@ -16,8 +16,11 @@ dependencies:
   # Tipografías profesionales (Orbitron y Roboto)
   google_fonts: ^6.2.1
   
-  # Iconos adicionales de estilo iOS/Premium
+  # Iconos adicionales
   cupertino_icons: ^1.0.8
+
+  # Para persistencia local (lo usaremos para que no pida login siempre)
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -26,6 +29,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # No necesitas declarar assets de fuentes aquí porque 
-  # google_fonts las descarga automáticamente por internet.
