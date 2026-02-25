@@ -9,10 +9,12 @@ class VortexTVInterface extends StatefulWidget {
 }
 
 class _VortexTVInterfaceState extends State<VortexTVInterface> {
-  int _selectedCategory = 0; // TV, Películas, etc.
-  int _selectedChannel = 0;
+  // VARIABLES DE ESTADO (Para que la interfaz reaccione)
+  bool estaCargando = true; // Cambia a 'false' para ver el menú normal
+  double velocidadKB = 623.7;
+  int _selectedSidebarIndex = 0;
 
-  final List<Map<String, dynamic>> _categories = [
+  final List<Map<String, dynamic>> _sidebarMenu = [
     {"icon": Icons.tv, "label": "TV"},
     {"icon": Icons.star, "label": "DESTACADOS"},
     {"icon": Icons.movie, "label": "PELÍCULAS"},
@@ -22,53 +24,49 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
     {"icon": Icons.explore, "label": "EXPLORAR"},
   ];
 
-  final List<String> _channels = ["ECDF", "ECDF FHD", "NBA Eventos", "A3S", "A&E HD", "A&E FHD"];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // CAPA 1: FONDO (BANNER / VIDEO)
+          // 1. CAPA DE FONDO OSCURO
           _buildBackground(),
 
-          // CAPA 2: INTERFAZ DE NAVEGACIÓN
+          // 2. INTERFAZ PRINCIPAL
           Row(
             children: [
               _buildSidebar(),      // Menú izquierdo
-              _buildChannelList(),  // Lista de canales dinámica
+              _buildChannelList(),  // Lista de canales a la derecha de la barra
               Expanded(
                 child: Column(
                   children: [
-                    _buildTopToolbar(), // Buscador, Filtro, Perfil, etc.
-                    const Spacer(),
+                    _buildTopToolbar(), // Lupa, Wifi, Hora, etc.
+                    Expanded(
+                      child: estaCargando 
+                        ? _buildLoadingScreen() // Muestra el círculo si carga
+                        : const Center(child: Icon(Icons.play_arrow, size: 100, color: Colors.white24)),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
 
-          // CAPA 3: BOTONES DE ACCIÓN INFERIORES
+          // 3. BOTONES INFERIORES (Cuadrito, Estrella, Lupa)
           _buildBottomActions(),
         ],
       ),
     );
   }
 
-  // --- WIDGETS DE LA INTERFAZ ---
+  // --- COMPONENTES DE LA INTERFAZ ---
 
   Widget _buildBackground() {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Colors.black, Colors.black.withOpacity(0.5), Colors.transparent],
-        ),
-      ),
+      color: const Color(0xFF050505),
     );
   }
 
@@ -78,12 +76,12 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          _toolIcon(Icons.search),           // Lupa
-          _toolIcon(Icons.filter_list),      // Filtro
-          _toolIcon(Icons.history),          // Historial
-          _toolIcon(Icons.account_circle),   // Perfil
-          _toolIcon(Icons.notifications),    // Campana
-          _toolIcon(Icons.wifi),             // Wi-Fi
+          _toolIcon(Icons.search),
+          _toolIcon(Icons.tune),
+          _toolIcon(Icons.history),
+          _toolIcon(Icons.account_circle),
+          _toolIcon(Icons.notifications),
+          _toolIcon(Icons.wifi),
           const SizedBox(width: 15),
           Text("00:45", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 20)),
         ],
@@ -92,37 +90,27 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
   }
 
   Widget _toolIcon(IconData icon) {
-    return Focus(
-      child: Builder(builder: (context) {
-        bool focused = Focus.of(context).hasFocus;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Icon(icon, color: focused ? Colors.cyanAccent : Colors.white70, size: 24),
-        );
-      }),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Icon(icon, color: Colors.white70, size: 24),
     );
   }
 
   Widget _buildSidebar() {
     return Container(
-      width: 90,
+      width: 100,
       color: Colors.black,
       child: Column(
-        children: List.generate(_categories.length, (index) {
-          return Focus(
-            onFocusChange: (f) if (f) setState(() => _selectedCategory = index),
-            child: Builder(builder: (context) {
-              bool focused = Focus.of(context).hasFocus;
-              return Container(
-                height: 80,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border(left: BorderSide(color: focused ? Colors.blueAccent : Colors.transparent, width: 4)),
-                  color: focused ? Colors.blueAccent.withOpacity(0.1) : Colors.transparent,
-                ),
-                child: Icon(_categories[index]['icon'], color: focused ? Colors.white : Colors.white38, size: 30),
-              );
-            }),
+        children: List.generate(_sidebarMenu.length, (index) {
+          bool isSelected = _selectedSidebarIndex == index;
+          return Container(
+            height: 80,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.blueAccent.withOpacity(0.1) : Colors.transparent,
+              border: Border(left: BorderSide(color: isSelected ? Colors.blueAccent : Colors.transparent, width: 4)),
+            ),
+            child: Icon(_sidebarMenu[index]['icon'], color: isSelected ? Colors.white : Colors.white24, size: 30),
           );
         }),
       ),
@@ -132,25 +120,28 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
   Widget _buildChannelList() {
     return Container(
       width: 200,
-      color: Colors.white.withOpacity(0.02),
+      color: Colors.white.withOpacity(0.01),
       child: ListView.builder(
-        itemCount: _channels.length,
-        itemBuilder: (context, index) {
-          return Focus(
-            onFocusChange: (f) if (f) setState(() => _selectedChannel = index),
-            child: Builder(builder: (context) {
-              bool focused = Focus.of(context).hasFocus;
-              return Container(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: focused ? Colors.blueAccent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(_channels[index], style: const TextStyle(color: Colors.white, fontSize: 14)),
-              );
-            }),
-          );
-        },
+        itemCount: 6,
+        itemBuilder: (context, index) => Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8)),
+          child: const Text("CANAL EJEMPLO", style: TextStyle(color: Colors.white, fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 5),
+          const SizedBox(height: 20),
+          Text("${velocidadKB}KB/S", style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16)),
+        ],
       ),
     );
   }
@@ -158,32 +149,24 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
   Widget _buildBottomActions() {
     return Positioned(
       bottom: 40,
-      left: 110,
+      left: 120,
       child: Row(
         children: [
-          _bottomIcon(Icons.apps),           // Cuadradito
+          _bottomIcon(Icons.apps),
           const SizedBox(width: 25),
-          _bottomIcon(Icons.change_history), // Triángulo (Favoritos)
+          _bottomIcon(Icons.change_history),
           const SizedBox(width: 25),
-          _bottomIcon(Icons.search),         // Lupita abajo
+          _bottomIcon(Icons.search),
         ],
       ),
     );
   }
 
   Widget _bottomIcon(IconData icon) {
-    return Focus(
-      child: Builder(builder: (context) {
-        bool focused = Focus.of(context).hasFocus;
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: focused ? Colors.cyanAccent : Colors.white10,
-          ),
-          child: Icon(icon, color: focused ? Colors.black : Colors.white, size: 22),
-        );
-      }),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white10),
+      child: Icon(icon, color: Colors.white, size: 22),
     );
   }
 }
