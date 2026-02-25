@@ -13,14 +13,17 @@ dependencies:
   # Motor de peticiones para EmailJS y SQLite Cloud
   http: ^1.2.0
   
-  # Tipografías profesionales (Orbitron y Roboto)
+  # Tipografías profesionales
   google_fonts: ^6.2.1
   
   # Iconos adicionales
   cupertino_icons: ^1.0.8
 
-  # Para persistencia local (lo usaremos para que no pida login siempre)
+  # Para persistencia local
   shared_preferences: ^2.2.2
+
+  # --- LIBRERÍA PARA EL VIDEO ---
+  video_player: ^2.8.1
 
 dev_dependencies:
   flutter_test:
@@ -29,3 +32,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # --- REGISTRO DE TUS VIDEOS ---
+  # Asegúrate de que el video esté en esta carpeta en tu GitHub
+  assets:
+    - assets/videos/intro.mp4
