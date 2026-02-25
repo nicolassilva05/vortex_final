@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
+import 'package:google_fonts/google_fonts.dart'; // Asegúrate de tener esta dependencia
 
-// Borramos el "void main" porque ahora manda el main.dart principal
+// QUITAMOS EL VOID MAIN PORQUE ESTE ARCHIVO ES LLAMADO DESDE EL MAIN.DART PRINCIPAL
 
 class VortexTVInterface extends StatefulWidget {
-  final Map<String, dynamic>? user; // Recibe el usuario del login
-  final VoidCallback onLogout;      // Recibe la función para salir
+  // --- CONEXIÓN CON EL LOGIN ---
+  final Map<String, dynamic>? user; // Recibe los datos del usuario logueado
+  final VoidCallback onLogout;      // Recibe la función para cerrar sesión
 
   const VortexTVInterface({super.key, this.user, required this.onLogout});
-
-  @override
-  State<VortexTVInterface> createState() => _VortexTVInterfaceState();
-}
-
-class VortexTVInterface extends StatefulWidget {
-  const VortexTVInterface({super.key});
 
   @override
   State<VortexTVInterface> createState() => _VortexTVInterfaceState();
@@ -36,7 +31,6 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
   bool esFavorito = false;
 
   // --- LÓGICA DE INTERNET (WIFI) ---
-  // Estos valores son los que cambiarán según la conexión del TV
   bool estaConectado = true; 
   int nivelSenal = 3; // 0, 1, 2, 3 (barras de señal)
 
@@ -109,7 +103,6 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
 
   // --- WIDGET DE ICONO DE WIFI SEGÚN ESTADO ---
   Widget _buildWifiIcon() {
-    // Si no hay internet: Gris con punto rojo al costado
     if (!estaConectado) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -128,7 +121,6 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
       );
     }
 
-    // Si hay internet: Blanco con barras dinámicas
     IconData iconData;
     switch (nivelSenal) {
       case 0: iconData = Icons.network_wifi_1_bar; break;
@@ -148,7 +140,7 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
           children: [
             Text(
               "VORTEX",
-              style: TextStyle(
+              style: GoogleFonts.orbitron( // Usando Orbitron para match con el login
                 color: Colors.white,
                 fontSize: 38,
                 fontWeight: FontWeight.w900,
@@ -194,7 +186,7 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
           children: [
             Text(
               seccionActual!.toUpperCase(), 
-              style: const TextStyle(color: Colors.cyanAccent, fontSize: 45, fontWeight: FontWeight.bold)
+              style: GoogleFonts.orbitron(color: Colors.cyanAccent, fontSize: 45, fontWeight: FontWeight.bold)
             ),
             const SizedBox(height: 10),
             const Text("ESTÁ VACÍO POR EL MOMENTO", style: TextStyle(color: Colors.white24, fontSize: 18)),
@@ -257,7 +249,6 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
               : Stack(
                   children: [
                     const Center(child: Icon(Icons.play_circle_outline, color: Colors.white12, size: 100)),
-                    // BARRA DE CARGA DEL VIDEO (Solución visual para PC/Web)
                     if (!modoPantallaCompleta)
                       Positioned(
                         bottom: 0,
@@ -296,7 +287,7 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
           _topIconButton(Icons.history, "HISTORIAL"), const SizedBox(width: 25),
           _topIconButton(Icons.person_outline, "PERFIL"), const SizedBox(width: 25),
           _topIconButton(Icons.notifications_none, "AVISOS"), const SizedBox(width: 25),
-          _buildWifiIcon(), // ICONO WIFI DINÁMICO
+          _buildWifiIcon(), 
           const SizedBox(width: 25),
           const Text("01:18", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
         ],
@@ -502,7 +493,6 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
               ],
             ),
             const SizedBox(height: 15),
-            // BARRA DE PROGRESO CORREGIDA
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: const LinearProgressIndicator(
@@ -519,7 +509,10 @@ class _VortexTVInterfaceState extends State<VortexTVInterface> {
                 _fullBtn(Icons.favorite, esFavorito ? Colors.red : Colors.white, () => setState(() => esFavorito = !esFavorito), "fav"),
                 _fullBtn(Icons.lock, canalBloqueado ? Colors.blueAccent : Colors.white, () => setState(() => canalBloqueado = !canalBloqueado), "lock"),
                 _fullBtn(Icons.settings, Colors.white, () {}, "settings"),
-                _fullBtn(Icons.power_settings_new, Colors.white, () => setState(() => modoPantallaCompleta = false), "off"),
+                // --- BOTÓN DE APAGAR CONECTADO AL LOGIN ---
+                _fullBtn(Icons.power_settings_new, Colors.white, () {
+                  widget.onLogout(); // ESTO TE REGRESA AL LOGIN
+                }, "off"),
               ],
             )
           ],
