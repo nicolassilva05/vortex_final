@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:google_fonts/google_fonts.dart';
 
-void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: VortexTVInterface(),
-  ));
+// Borramos el "void main" porque ahora manda el main.dart principal
+
+class VortexTVInterface extends StatefulWidget {
+  final Map<String, dynamic>? user; // Recibe el usuario del login
+  final VoidCallback onLogout;      // Recibe la función para salir
+
+  const VortexTVInterface({super.key, this.user, required this.onLogout});
+
+  @override
+  State<VortexTVInterface> createState() => _VortexTVInterfaceState();
 }
 
 class VortexTVInterface extends StatefulWidget {
