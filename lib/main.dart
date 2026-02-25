@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math'; 
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
+import 'vortex_menu.dart'; // <--- Esta es la conexión clave
 
 void main() {
   runApp(const VertoxApp());
@@ -159,9 +160,9 @@ class _VertoxAppState extends State<VertoxApp> {
           gallery: avatarGallery,
           onSelect: () => changeSector('HOME'),
         );
-      case 'HOME': return VertoxHomeScreen(
-          savedPassword: savedPassword,
-          currentUser: currentUser,
+      case 'HOME': 
+        return VortexTVInterface(
+          user: currentUser, 
           onLogout: () {
             setState(() { isLoggedIn = false; savedPassword = ""; });
             changeSector('LOGIN');
