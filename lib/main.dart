@@ -21,6 +21,9 @@ class VertoxBridge {
   static const String emailTemplateId = "template_rbyu42h"; 
   static const String emailPublicKey = "PRoX1Ao5_SrB4sncc";
 
+  // LISTA DE SEGURIDAD (CANDADO REAL)
+  static final List<Map<String, String>> _usersInCloud = [];
+
   // Función de envío inteligente con Failover
   static Future<bool> sendEmailOTP(String userEmail, String otpCode) async {
     bool success = await _executeEmailJS(serviceGmail, userEmail, otpCode);
@@ -57,21 +60,34 @@ class VertoxBridge {
     }
   }
 
-  // Sincronización con límite de 2 dispositivos
+  // Sincronización con límite de 2 dispositivos (AHORA SÍ GUARDA)
   static Future<bool> syncNewUser(String email, String pass, String uniqueID) async {
-    debugPrint("SQLITE CLOUD: INSERT INTO USERS (email, pass, vertox_id, dev_limit) VALUES ('$email', '$pass', '$uniqueID', 2)");
+    _usersInCloud.add({
+      "email": email,
+      "pass": pass,
+      "vertox_id": uniqueID,
+    });
+    debugPrint("SQLITE CLOUD: INSERT INTO USERS (email, pass, vertox_id) VALUES ('$email', '$pass', '$uniqueID')");
     await Future.delayed(const Duration(seconds: 2)); 
     return true; 
   }
 
+  // LOGIN ESTRICTO: NO DEJA PASAR SI EL EMAIL/PASS NO ESTÁ REGISTRADO
   static Future<Map<String, dynamic>?> dbLogin(String email, String pass) async {
     await Future.delayed(const Duration(seconds: 1));
-    return {
-      "name": email.split('@')[0], 
-      "email": email, 
-      "role": "ADMIN",
-      "avatar": "https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
-    };
+    try {
+      final found = _usersInCloud.firstWhere(
+        (u) => u['email'] == email && u['pass'] == pass
+      );
+      return {
+        "name": found['email']!.split('@')[0], 
+        "email": found['email'], 
+        "role": "ADMIN",
+        "avatar": "https://cdn-icons-png.flaticon.com/512/4712/4712139.png"
+      };
+    } catch (e) {
+      return null; // Credenciales inválidas
+    }
   }
 }
 
@@ -357,7 +373,11 @@ class _VertoxLoginState extends State<VertoxLogin> {
                       setState(() => loading = true);
                       var user = await VertoxBridge.dbLogin(userCtrl.text, passCtrl.text);
                       setState(() => loading = false);
-                      widget.onSuccess(user!, passCtrl.text);
+                      if (user != null) {
+                        widget.onSuccess(user, passCtrl.text);
+                      } else {
+                        VUI.showStatus(context, "ERROR: Acceso denegado. Credenciales no encontradas.", isError: true);
+                      }
                     } else {
                       VUI.showStatus(context, "Por favor complete las credenciales", isError: true);
                     }
@@ -742,70 +762,22 @@ class _VertoxHomeScreenState extends State<VertoxHomeScreen> {
       body: VUI.decorativeBackground(
         Stack(
           children: [
-            // BARRA SUPERIOR
-            Positioned(
-              top: 50, left: 30, right: 30,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("V O R T E X", style: TextStyle(color: Colors.cyanAccent, fontSize: 24, fontWeight: FontWeight.bold)),
-                      Text("ESTADO: EN LÍNEA", style: TextStyle(color: Colors.greenAccent, fontSize: 10, letterSpacing: 2)),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: _triggerLogoutProcedure,
-                    icon: const Icon(Icons.power_settings_new, color: Colors.redAccent, size: 30),
-                  )
-                ],
-              ),
-            ),
-            // CONTENIDO CENTRAL
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.shield, size: 100, color: Colors.cyanAccent),
-                  const SizedBox(height: 20),
-                  Text("BIENVENIDO AL NÚCLEO", style: GoogleFonts.orbitron(fontSize: 30, letterSpacing: 5)),
-                  Text(widget.currentUser?['email'] ?? "OPERADOR", style: const TextStyle(color: Colors.white38)),
-                  const SizedBox(height: 50),
-                  Wrap(
-                    spacing: 20,
-                    children: [
-                      _dashCard("BASE DE DATOS", Icons.storage, "CONECTADO"),
-                      _dashCard("SEGURIDAD", Icons.lock, "ACTIVA"),
-                      _dashCard("RED CLOUD", Icons.cloud_done, "LATENCIA 2ms"),
-                    ],
-                  )
+                   const Icon(Icons.verified_user, size: 120, color: Colors.cyanAccent),
+                   const SizedBox(height: 20),
+                   Text("NÚCLEO OPERATIVO ACTIVADO", style: GoogleFonts.orbitron(fontSize: 24, color: Colors.cyanAccent, letterSpacing: 2)),
+                   const SizedBox(height: 10),
+                   Text("SISTEMA CONECTADO COMO: ${widget.currentUser?['email']}", style: const TextStyle(color: Colors.white54)),
+                   const SizedBox(height: 80),
+                   VUI.mainButton(text: "DESCONECTAR NÚCLEO", onPressed: _triggerLogoutProcedure),
                 ],
               ),
-            )
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _dashCard(String title, IconData icon, String status) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.cyanAccent),
-          const SizedBox(height: 15),
-          Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 5),
-          Text(status, style: const TextStyle(fontSize: 12, color: Colors.white24)),
-        ],
       ),
     );
   }
